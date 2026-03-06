@@ -34,5 +34,8 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
 
+    // PDFBox for PDF extraction
+    implementation("org.apache.pdfbox:pdfbox:3.0.6")
+
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
 }
