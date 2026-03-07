@@ -37,5 +37,17 @@ dependencies {
     // PDFBox for PDF extraction
     implementation("org.apache.pdfbox:pdfbox:3.0.6")
 
+    // LangChain4j local embedding model
+    implementation("dev.langchain4j:langchain4j-embeddings-all-minilm-l6-v2:0.31.0")
+
+    // Vector store dependencies
+    implementation("org.postgresql:postgresql:42.7.3")
+    implementation("com.pgvector:pgvector:0.1.6")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.0")
+
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
+    
+    // Testcontainers for VectorStore integration tests
+    testImplementation("org.testcontainers:postgresql:1.19.7")
+    testImplementation("org.testcontainers:junit-jupiter:1.19.7")
 }
