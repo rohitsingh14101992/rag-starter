@@ -26,7 +26,10 @@ class GeminiApiClient(private val apiKey: String, private val modelName: String 
             )
         )
 
-        val response: HttpResponse = client.post("https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent") {
+        // Ensure the modelName doesn't accidentally have "models/" prepended twice
+        val cleanModelName = modelName.removePrefix("models/")
+        
+        val response: HttpResponse = client.post("https://generativelanguage.googleapis.com/v1beta/models/$cleanModelName:generateContent") {
             contentType(ContentType.Application.Json)
             parameter("key", apiKey)
             setBody(requestBody)
