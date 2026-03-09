@@ -2,6 +2,7 @@ package com.example.rag.api
 
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -16,6 +17,10 @@ class GeminiApiClient(private val apiKey: String, private val modelName: String 
             json(Json { 
                 ignoreUnknownKeys = true 
             })
+        }
+        install(HttpTimeout) {
+            requestTimeoutMillis = 60_000
+            connectTimeoutMillis = 10_000
         }
     }
 
