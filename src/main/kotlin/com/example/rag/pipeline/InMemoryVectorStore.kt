@@ -67,4 +67,7 @@ class InMemoryVectorStore : VectorStore {
         // Cosine distance is 1 - similarity (ranges from 0 to 2).
         return 1.0 - similarity
     }
+
+    // In-memory store is always empty at startup — data doesn't survive restarts
+    override suspend fun isAlreadyIndexed(sourceId: String): Boolean = false
 }

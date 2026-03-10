@@ -6,7 +6,7 @@ object PromptTemplate {
 
     /**
      * Constructs a prompt for the LLM using the user's question and the retrieved context.
-     * 
+     *
      * @param question The user's original query
      * @param contextBlocks The list of relevant ContentBlocks retrieved from the VectorStore
      * @return A formatted strictly instructed prompt for the LLM
@@ -20,9 +20,9 @@ object PromptTemplate {
             append("--- CONTEXT START ---\n")
             contextBlocks.forEachIndexed { index, (block, _) ->
                 if (block is ContentBlock.TextBlock) {
-                    val source = block.metadata["source"] ?: "Unknown"
-                    val page = block.metadata["page"] ?: "?"
-                    append("\n[Document $index | Source: $source | Page: $page]\n")
+                    val source = block.metadata["source_id"] ?: "Unknown"
+                    val page = block.metadata["page_number"] ?: "?"
+                    append("\n[Document ${index + 1} | Source: $source | Page: $page]\n")
                     append("${block.text}\n")
                 }
             }
@@ -30,13 +30,15 @@ object PromptTemplate {
         }
 
         return """
-            You are a helpful and precise assistant. You have been provided with context from the user's internal documents.
+            You are a helpful and precise assistant.
             
-            Please answer the user's question based ONLY on the context provided above.
-            If the context does not contain the answer, politely state that you do not know based on the provided documents.
-            Do not make up information or use outside knowledge.
+            The following context has been retrieved from the user's documents to help you answer their question:
             
             $contextStr
+            
+            Using ONLY the context provided above, answer the user's question.
+            If the answer is not found in the context, say: "I could not find this information in the provided documents."
+            Do not make up information or use outside knowledge.
             
             User Question: $question
             

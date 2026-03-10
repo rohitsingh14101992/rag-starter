@@ -93,8 +93,8 @@ fun main() = runBlocking {
                 println("Found ${searchResults.size} context chunk(s):")
                 searchResults.forEachIndexed { i, (block, score) ->
                     if (block is ContentBlock.TextBlock) {
-                        val source = block.metadata["source"] ?: "unknown"
-                        val page   = block.metadata["page"] ?: "?"
+                        val source = block.metadata["source_id"] ?: "unknown"
+                        val page   = block.metadata["page_number"] ?: "?"
                         val preview = block.text.take(80).replace('\n', ' ')
                         println("  [${i + 1}] score=%.4f | $source (page $page) | \"$preview...\"".format(score))
                     }

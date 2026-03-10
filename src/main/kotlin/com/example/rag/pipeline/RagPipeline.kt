@@ -20,20 +20,26 @@ class RagPipeline(
     @OptIn(ExperimentalCoroutinesApi::class)
     fun processFolder(folderPath: String, concurrencyLimit: Int = 4): Flow<Document> {
         val folder = File(folderPath)
-        
+
         if (!folder.exists() || !folder.isDirectory) {
             throw IllegalArgumentException("Provided path is not a valid directory: \$folderPath")
         }
 
         val files = folder.listFiles()?.filter { it.isFile } ?: emptyList()
+        return processFiles(files, concurrencyLimit)
+    }
 
+    /**
+     * Processes a specific list of files (skipping folder scanning).
+     * Used when the caller has already filtered out files that don't need processing.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun processFiles(files: List<File>, concurrencyLimit: Int = 4): Flow<Document> {
         return files.asFlow()
-            // Process files concurrently up to the given limit
             .flatMapMerge(concurrency = concurrencyLimit) { file ->
                 flow {
                     when (file.extension.lowercase()) {
                         "pdf" -> {
-                            // Run the blocking IO and PDF parsing on a background thread pool
                             val doc = withContext(Dispatchers.IO) {
                                 FileInputStream(file).use { inputStream ->
                                     loader.load(inputStream, file.absolutePath)

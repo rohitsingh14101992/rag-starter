@@ -168,4 +168,14 @@ class PgVectorStore(
         }
         results
     }
+    override suspend fun isAlreadyIndexed(sourceId: String): Boolean = withContext(Dispatchers.IO) {
+        getConnection().use { conn ->
+            // Check if any row exists with this source_id in the metadata JSONB column
+            val sql = "SELECT 1 FROM $tableName WHERE metadata->>'source_id' = ? LIMIT 1"
+            conn.prepareStatement(sql).use { stmt ->
+                stmt.setString(1, sourceId)
+                stmt.executeQuery().use { rs -> rs.next() }
+            }
+        }
+    }
 }
