@@ -1,5 +1,7 @@
 package com.example.rag.api
 
+import com.example.rag.core.LlmClient
+
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.*
@@ -55,7 +57,7 @@ data class GroqOutputContent(
 class GroqApiClient(
     private val apiKey: String,
     private val modelName: String = "llama-3.1-8b-instant"
-) {
+) : LlmClient {
     private val json = Json { ignoreUnknownKeys = true }
     private val client = HttpClient(CIO) {
         install(ContentNegotiation) { json(json) }
@@ -65,7 +67,7 @@ class GroqApiClient(
         }
     }
 
-    suspend fun generateContent(prompt: String): String {
+    override suspend fun generate(prompt: String): String {
         // openai/* models use the Responses API (/v1/responses)
         return if (modelName.startsWith("openai/")) {
             callResponsesApi(prompt)

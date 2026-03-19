@@ -46,6 +46,9 @@ dependencies {
     implementation("com.pgvector:pgvector:0.1.6")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.0")
 
+    // Dependency Injection
+    implementation("io.insert-koin:koin-core:3.5.3")
+
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
     
     // Testcontainers for VectorStore integration tests

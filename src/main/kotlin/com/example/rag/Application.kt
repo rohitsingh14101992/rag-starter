@@ -1,79 +1,64 @@
 package com.example.rag
 
-import com.example.rag.api.GeminiApiClient
-import com.example.rag.api.GroqApiClient
+import com.example.rag.api.ConversationMessage
 import com.example.rag.api.PromptTemplate
 import com.example.rag.core.ContentBlock
-import com.example.rag.db.DatabaseManager
-import com.example.rag.pipeline.AllMiniLmL6V2Embedder
+import com.example.rag.core.Embedder
+import com.example.rag.core.LlmClient
+import com.example.rag.core.VectorStore
+import com.example.rag.di.appModule
 import com.example.rag.pipeline.DataIngestionService
-import com.example.rag.pipeline.FixedSizeChunker
-import com.example.rag.pipeline.PDFBoxDocumentLoader
-import com.example.rag.pipeline.RagPipeline
 import kotlinx.coroutines.runBlocking
+import org.koin.core.context.startKoin
 import java.io.File
+import java.util.Properties
 
 fun main() = runBlocking {
     println("Welcome to the Kotlin RAG Starter!")
 
-    // Load config.properties
-    val properties = java.util.Properties()
-    val configFile = java.io.File("config.properties")
+    // ── 1. Load configuration ───────────────────────────────────
+    val properties = Properties()
+    val configFile = File("config.properties")
     if (configFile.exists()) {
         configFile.inputStream().use { properties.load(it) }
     }
 
+    // ── 2. Validate API key before starting Koin ────────────────
     val provider = properties.getProperty("llm.provider", "gemini").lowercase()
-
-    // Build a simple suspend lambda for whichever provider is active
-    val groqClient: GroqApiClient?
-    val geminiClient: GeminiApiClient?
-
     if (provider == "groq") {
-        val apiKey = properties.getProperty("groq.api.key") ?: ""
-        val model  = properties.getProperty("groq.model", "llama3-8b-8192")
+        val apiKey = properties.getProperty("groq.api.key", "")
         if (apiKey.isBlank()) {
             println("Error: groq.api.key is not set in config.properties.")
             return@runBlocking
         }
-        println("Using Groq provider with model: $model")
-        groqClient  = GroqApiClient(apiKey, model)
-        geminiClient = null
+        println("Using Groq provider with model: ${properties.getProperty("groq.model", "llama3-8b-8192")}")
     } else {
-        val apiKey = System.getenv("GEMINI_API_KEY") ?: properties.getProperty("gemini.api.key") ?: ""
-        val model  = properties.getProperty("gemini.model", "gemini-1.5-flash")
+        val apiKey = System.getenv("GEMINI_API_KEY") ?: properties.getProperty("gemini.api.key", "")
         if (apiKey.isBlank()) {
-            println("Error: gemini.api.key is not set.")
+            println("Error: gemini.api.key is not set in config.properties or GEMINI_API_KEY env var.")
             return@runBlocking
         }
-        println("Using Gemini provider with model: $model")
-        geminiClient = GeminiApiClient(apiKey, model)
-        groqClient   = null
+        println("Using Gemini provider with model: ${properties.getProperty("gemini.model", "gemini-1.5-flash")}")
     }
 
-    suspend fun generate(prompt: String): String =
-        groqClient?.generateContent(prompt) ?: geminiClient!!.generateContent(prompt)
+    // ── 3. Start Koin and resolve dependencies ──────────────────
+    val koin = startKoin {
+        modules(appModule(properties))
+    }.koin
 
-    // 1. Initialize Vector Database connection
-    val vectorStore = try {
-        DatabaseManager.setupVectorStore(properties)
-    } catch (e: Exception) {
-        return@runBlocking
-    }
+    val llmClient        = koin.get<LlmClient>()
+    val embedder         = koin.get<Embedder>()
+    val vectorStore      = koin.get<VectorStore>()
+    val ingestionService = koin.get<DataIngestionService>()
 
-    // 2. Initialize Pipeline Components
-    val documentLoader = PDFBoxDocumentLoader()
-    val pipeline = RagPipeline(loader = documentLoader)
-    val chunker = FixedSizeChunker(maxLength = 500, overlap = 50)
-    val embedder = AllMiniLmL6V2Embedder()
-
-    val ingestionService = DataIngestionService(pipeline, chunker, embedder, vectorStore)
-
-    // 3. Process the files folder
+    // ── 4. Ingest documents ─────────────────────────────────────
     ingestionService.ingestFolder("files")
 
     println("\nSystem Ready!")
     println("Enter your prompt (or type 'exit' to quit):")
+
+    // ── 5. Interactive query loop ────────────────────────────────
+    val conversationHistory = mutableListOf<ConversationMessage>()
 
     while (true) {
         print("> ")
@@ -93,18 +78,26 @@ fun main() = runBlocking {
                 println("Found ${searchResults.size} context chunk(s):")
                 searchResults.forEachIndexed { i, (block, score) ->
                     if (block is ContentBlock.TextBlock) {
-                        val source = block.metadata["source_id"] ?: "unknown"
-                        val page   = block.metadata["page_number"] ?: "?"
+                        val source  = block.metadata["source_id"] ?: "unknown"
+                        val page    = block.metadata["page_number"] ?: "?"
                         val preview = block.text.take(80).replace('\n', ' ')
                         println("  [${i + 1}] score=%.4f | $source (page $page) | \"$preview...\"".format(score))
                     }
                 }
 
-                val fullPrompt = PromptTemplate.formatRagPrompt(input, searchResults)
+                val fullPrompt = PromptTemplate.build {
+                    withContext(searchResults)
+                    withHistory(conversationHistory)
+                    withQuestion(input)
+                }
 
                 println("Generating response...")
-                val response = generate(fullPrompt)
+                val response = llmClient.generate(fullPrompt)
                 println("\n--- Response ---\n$response\n----------------")
+
+                conversationHistory.add(ConversationMessage("user", input))
+                conversationHistory.add(ConversationMessage("assistant", response))
+
             } catch (e: Exception) {
                 println("Error: ${e.message}")
             }

@@ -1,5 +1,6 @@
 package com.example.rag.pipeline
 
+import com.example.rag.core.Chunker
 import com.example.rag.core.ContentBlock
 import com.example.rag.core.Embedder
 import com.example.rag.core.VectorStore
@@ -8,7 +9,7 @@ import java.io.File
 
 class DataIngestionService(
     private val pipeline: RagPipeline,
-    private val chunker: FixedSizeChunker,
+    private val chunker: Chunker,
     private val embedder: Embedder,
     private val vectorStore: VectorStore
 ) {

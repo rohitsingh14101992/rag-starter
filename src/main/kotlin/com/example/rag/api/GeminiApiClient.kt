@@ -1,5 +1,7 @@
 package com.example.rag.api
 
+import com.example.rag.core.LlmClient
+
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.*
@@ -11,7 +13,7 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 
-class GeminiApiClient(private val apiKey: String, private val modelName: String = "gemini-1.5-flash") {
+class GeminiApiClient(private val apiKey: String, private val modelName: String = "gemini-1.5-flash") : LlmClient {
     private val client = HttpClient(CIO) {
         install(ContentNegotiation) {
             json(Json { 
@@ -24,7 +26,7 @@ class GeminiApiClient(private val apiKey: String, private val modelName: String 
         }
     }
 
-    suspend fun generateContent(prompt: String): String {
+    override suspend fun generate(prompt: String): String {
         val requestBody = GeminiRequest(
             contents = listOf(
                 Content(parts = listOf(Part(text = prompt)))
