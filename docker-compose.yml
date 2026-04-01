@@ -21,6 +21,16 @@ services:
       retries: 5
       start_period: 10s
 
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: rag-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    # No dependency on pgvector — frontend is fully independent of backend infra
+
 volumes:
   pgvector_data:
     driver: local

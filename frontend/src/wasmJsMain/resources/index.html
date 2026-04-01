@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RAG Assistant</title>
+    <script src="skiko.js"></script>
+</head>
+<body style="margin:0;padding:0;">
+    <canvas id="ComposeTarget" style="outline:none;"></canvas>
+    <!-- frontend.js is a UMD bundle — must NOT use type="module"
+         because the UMD wrapper uses `this` as the global root,
+         which is undefined inside an ES module (strict mode). -->
+    <script src="frontend.js"></script>
+</body>
+</html>
