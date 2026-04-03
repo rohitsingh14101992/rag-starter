@@ -24,3 +24,9 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE TRIGGER users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ── Seed data (dev / testing only) ────────────────────────────────────────────
+-- Password: "password"  (bcrypt cost=10 — change before going to production)
+INSERT INTO users (email, password_hash)
+VALUES ('abc@gmail.com', '$2b$10$KUio6k1SLYGGbnGd93X4WumPCocQ/nvGnqMAep8WvCOW/SUAenf2C')
+ON CONFLICT (email) DO NOTHING;  -- safe to re-run without duplicates
