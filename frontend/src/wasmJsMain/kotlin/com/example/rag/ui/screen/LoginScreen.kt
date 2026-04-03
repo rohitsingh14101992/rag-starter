@@ -12,7 +12,7 @@ import androidx.compose.ui.unit.dp
 fun LoginScreen(
     onLoginSuccess: () -> Unit = {}
 ) {
-    var username by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
 
@@ -44,9 +44,9 @@ fun LoginScreen(
                 Spacer(Modifier.height(8.dp))
 
                 OutlinedTextField(
-                    value = username,
-                    onValueChange = { username = it },
-                    label = { Text("Username") },
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -71,8 +71,8 @@ fun LoginScreen(
                 Button(
                     onClick = {
                         when {
-                            username.isBlank() || password.isBlank() ->
-                                errorMessage = "Please enter both username and password."
+                            email.isBlank() || password.isBlank() ->
+                                errorMessage = "Please enter email and password."
                             else -> {
                                 errorMessage = ""
                                 onLoginSuccess() // TODO: call ApiClient.login(username, password)
