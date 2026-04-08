@@ -7,6 +7,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.example.rag.ui.api.performLogin
 
 @Composable
 fun LoginScreen(
@@ -75,7 +76,18 @@ fun LoginScreen(
                                 errorMessage = "Please enter email and password."
                             else -> {
                                 errorMessage = ""
-                                onLoginSuccess() // TODO: call ApiClient.login(username, password)
+                                performLogin(
+                                    email = email,
+                                    password = password,
+                                    onSuccess = { token ->
+                                        // TODO: store token in cookie/localStorage if needed
+                                        println("Login success! Token: $token")
+                                        onLoginSuccess()
+                                    },
+                                    onError = { error ->
+                                        errorMessage = error
+                                    }
+                                )
                             }
                         }
                     },
