@@ -1,20 +1,43 @@
 package com.example.rag.ui.api
 
-@JsFun("""
-function performLogin(email, password, onSuccess, onError) {
-    fetch('http://localhost:8081/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email, password: password })
-    })
-    .then(res => {
-        if (res.ok) {
-            res.json().then(data => onSuccess(data.token));
-        } else {
-            res.json().then(data => onError(data.error || "Login failed"));
-        }
-    })
-    .catch(err => onError(err.toString()));
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.request.*
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+
+@Serializable
+data class LoginRequest(val email: String, val password: String)
+
+@Serializable
+data class LoginResponse(val token: String)
+
+object ApiConstants {
+    const val BASE_URL = "http://localhost:8081/api"
+    const val LOGIN_ENDPOINT = "$BASE_URL/login"
 }
-""")
-external fun performLogin(email: String, password: String, onSuccess: (String) -> Unit, onError: (String) -> Unit)
+
+val apiClient = HttpClient {
+    install(ContentNegotiation) {
+        json(Json {
+            ignoreUnknownKeys = true
+        })
+    }
+}
+
+suspend fun performLoginSuspending(email: String, password: String): String {
+    val response = apiClient.post(ApiConstants.LOGIN_ENDPOINT) {
+        contentType(ContentType.Application.Json)
+        setBody(LoginRequest(email, password))
+    }
+    
+    if (response.status == HttpStatusCode.OK) {
+        val loginResponse: LoginResponse = response.body()
+        return loginResponse.token
+    } else {
+        throw Exception("Login failed: ${response.status}")
+    }
+}

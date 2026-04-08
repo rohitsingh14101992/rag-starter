@@ -7,12 +7,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.example.rag.ui.api.performLogin
+import com.example.rag.ui.api.performLoginSuspending
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit = {}
 ) {
+    val coroutineScope = rememberCoroutineScope()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
@@ -76,18 +78,15 @@ fun LoginScreen(
                                 errorMessage = "Please enter email and password."
                             else -> {
                                 errorMessage = ""
-                                performLogin(
-                                    email = email,
-                                    password = password,
-                                    onSuccess = { token ->
-                                        // TODO: store token in cookie/localStorage if needed
+                                coroutineScope.launch {
+                                    try {
+                                        val token = performLoginSuspending(email, password)
                                         println("Login success! Token: $token")
                                         onLoginSuccess()
-                                    },
-                                    onError = { error ->
-                                        errorMessage = error
+                                    } catch (e: Exception) {
+                                        errorMessage = e.message ?: "Login failed"
                                     }
-                                )
+                                }
                             }
                         }
                     },

@@ -13,7 +13,7 @@ import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.response.*
 
-fun createKtorServer(port: Int = 8080, authService: AuthService): NettyApplicationEngine =
+fun createKtorServer(port: Int = 8080, authService: AuthService) =
     embeddedServer(Netty, port = port) {
         // JSON serialisation
         install(ContentNegotiation) { json() }
