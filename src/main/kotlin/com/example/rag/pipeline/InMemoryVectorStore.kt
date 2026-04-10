@@ -68,11 +68,19 @@ class InMemoryVectorStore : VectorStore {
         return 1.0 - similarity
     }
 
-    // In-memory store is always empty at startup — data doesn't survive restarts
+    override suspend fun storeKeywords(blocks: List<ContentBlock>) {
+        data.addAll(blocks.map { it to FloatArray(0) }) // Simple storage without embeddings for keywords
+    }
+
     override suspend fun isAlreadyIndexed(sourceId: String): Boolean = 
         data.any { it.first.metadata["source_id"] == sourceId }
 
     override suspend fun deleteBySourceId(sourceId: String) {
         data.removeIf { it.first.metadata["source_id"] == sourceId }
+    }
+
+    override suspend fun hybridSearch(queryText: String, queryEmbedding: FloatArray, limit: Int): List<Pair<ContentBlock, Double>> {
+        // Simple fallback: just use vector search in-memory
+        return search(queryEmbedding, limit)
     }
 }

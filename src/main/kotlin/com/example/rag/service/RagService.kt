@@ -48,8 +48,12 @@ class RagService(
             .embedBatch(listOf(ContentBlock.TextBlock(request.question)))
             .first()
 
-        // 2. Retrieve top-k relevant chunks
-        val sources = vectorStore.search(queryEmbedding, limit = 3)
+        // 2. Retrieve top-k relevant chunks using Hybrid Search (Vector + Keyword)
+        val sources = vectorStore.hybridSearch(
+            queryText = request.question,
+            queryEmbedding = queryEmbedding,
+            limit = 3
+        )
 
         // 3. Build grounded prompt
         val prompt = promptTemplate.build {

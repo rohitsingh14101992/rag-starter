@@ -16,6 +16,7 @@ import java.time.ZoneId
 class DocumentSyncService(
     private val pipeline: RagPipeline,
     private val chunker: Chunker,
+    private val largeChunker: Chunker,
     private val embedder: Embedder,
     private val vectorStore: VectorStore,
     private val fileTrackerRepo: FileTrackerRepository
@@ -73,12 +74,20 @@ class DocumentSyncService(
     private suspend fun ingestFile(file: File) {
         val documents = pipeline.processFiles(listOf(file)).toList()
         for (doc in documents) {
-            val allChunks = doc.blocks.flatMap { block -> chunker.chunk(block) }
-            val textBlocks = allChunks.filterIsInstance<ContentBlock.TextBlock>()
+            // 1. Small chunks for vector embeddings
+            val smallChunks = doc.blocks.flatMap { block -> chunker.chunk(block) }
+            val textBlocks = smallChunks.filterIsInstance<ContentBlock.TextBlock>()
 
             if (textBlocks.isNotEmpty()) {
                 val embeddings = embedder.embedBatch(textBlocks)
                 vectorStore.storeBatch(textBlocks, embeddings)
+            }
+
+            // 2. Large chunks for keyword indexing (BM25)
+            val largeChunks = doc.blocks.flatMap { block -> largeChunker.chunk(block) }
+            val largeTextBlocks = largeChunks.filterIsInstance<ContentBlock.TextBlock>()
+            if (largeTextBlocks.isNotEmpty()) {
+                vectorStore.storeKeywords(largeTextBlocks)
             }
         }
     }

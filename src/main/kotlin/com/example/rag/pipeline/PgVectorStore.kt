@@ -49,13 +49,25 @@ class PgVectorStore(
                 )
             """.trimIndent())
             
-            // Add vector index for performance with cosine distance
-            // HNSW (Hierarchical Navigable Small World) is an advanced algorithm that makes searches 
-            // extremely fast even with millions of rows, though building the index takes some time/memory.
             // 'vector_cosine_ops' tells the index we will be searching using cosine distance (<=> operator).
             conn.createStatement().execute("""
                 CREATE INDEX IF NOT EXISTS ${tableName}_embedding_idx 
                 ON $tableName USING hnsw (embedding vector_cosine_ops)
+            """.trimIndent())
+
+            // Create keyword indexing table for BM25 / Full-text search
+            conn.createStatement().execute("""
+                CREATE TABLE IF NOT EXISTS keyword_indices (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    source_id TEXT NOT NULL,
+                    text_content TEXT NOT NULL,
+                    tsv tsvector
+                )
+            """.trimIndent())
+            
+            // Add GIN index for fast full-text search
+            conn.createStatement().execute("""
+                CREATE INDEX IF NOT EXISTS keyword_indices_tsv_idx ON keyword_indices USING gin(tsv)
             """.trimIndent())
         }
     }
@@ -129,6 +141,30 @@ class PgVectorStore(
         }
     }
 
+    override suspend fun storeKeywords(blocks: List<ContentBlock>) = withContext(Dispatchers.IO) {
+        if (blocks.isEmpty()) return@withContext
+
+        getConnection().use { conn ->
+            val sql = """
+                INSERT INTO keyword_indices (source_id, text_content, tsv) 
+                VALUES (?, ?, to_tsvector('english', ?))
+            """.trimIndent()
+            
+            conn.prepareStatement(sql).use { stmt ->
+                blocks.forEach { block ->
+                    if (block is TextBlock) {
+                        stmt.setString(1, block.metadata["source_id"] as? String ?: "unknown")
+                        stmt.setString(2, block.text)
+                        stmt.setString(3, block.text)
+                        stmt.addBatch()
+                    }
+                }
+                stmt.executeBatch()
+            }
+        }
+        Unit
+    }
+
     override suspend fun search(queryEmbedding: FloatArray, limit: Int): List<Pair<ContentBlock, Double>> = withContext(Dispatchers.IO) {
         val results = mutableListOf<Pair<ContentBlock, Double>>()
         getConnection().use { conn ->
@@ -168,6 +204,64 @@ class PgVectorStore(
         }
         results
     }
+
+    override suspend fun hybridSearch(queryText: String, queryEmbedding: FloatArray, limit: Int): List<Pair<ContentBlock, Double>> = withContext(Dispatchers.IO) {
+        val vectorResults = search(queryEmbedding, limit * 2) // Get more candidates for merging
+        
+        val keywordResults = mutableListOf<Pair<ContentBlock, Double>>()
+        getConnection().use { conn ->
+            // Simple keyword search with ts_rank
+            val sql = """
+                SELECT text_content, source_id, ts_rank(tsv, plainto_tsquery('english', ?)) as rank
+                FROM keyword_indices
+                WHERE tsv @@ plainto_tsquery('english', ?)
+                ORDER BY rank DESC
+                LIMIT ?
+            """.trimIndent()
+            
+            conn.prepareStatement(sql).use { stmt ->
+                stmt.setString(1, queryText)
+                stmt.setString(2, queryText)
+                stmt.setInt(3, limit * 2)
+                
+                stmt.executeQuery().use { rs ->
+                    while (rs.next()) {
+                        val text = rs.getString("text_content")
+                        val sourceId = rs.getString("source_id")
+                        val rank = rs.getDouble("rank")
+                        keywordResults.add(TextBlock(text, mapOf("source_id" to sourceId)) to rank)
+                    }
+                }
+            }
+        }
+
+        // Reciprocal Rank Fusion (RRF)
+        val k = 60.0
+        val scores = mutableMapOf<String, Double>() // Keyed by content + metadata to handle different chunk sizes
+        val blockMap = mutableMapOf<String, ContentBlock>()
+
+        fun computeKey(block: ContentBlock): String = when (block) {
+            is TextBlock -> "TEXT:${block.text}:${block.metadata["source_id"]}"
+            else -> block.toString()
+        }
+
+        vectorResults.forEachIndexed { index, (block, _) ->
+            val key = computeKey(block)
+            scores[key] = (scores[key] ?: 0.0) + 1.0 / (k + index + 1)
+            blockMap[key] = block
+        }
+
+        keywordResults.forEachIndexed { index, (block, _) ->
+            val key = computeKey(block)
+            scores[key] = (scores[key] ?: 0.0) + 1.0 / (k + index + 1)
+            blockMap[key] = block
+        }
+
+        scores.entries
+            .sortedByDescending { it.value }
+            .take(limit)
+            .map { (key, score) -> blockMap[key]!! to (1.0 - score) } // Return as distance-like if needed
+    }
     override suspend fun isAlreadyIndexed(sourceId: String): Boolean = withContext(Dispatchers.IO) {
         getConnection().use { conn ->
             // Check if any row exists with this source_id in the metadata JSONB column
@@ -181,8 +275,15 @@ class PgVectorStore(
 
     override suspend fun deleteBySourceId(sourceId: String): Unit = withContext(Dispatchers.IO) {
         getConnection().use { conn ->
-            val sql = "DELETE FROM $tableName WHERE metadata->>'source_id' = ?"
-            conn.prepareStatement(sql).use { stmt ->
+            // Clean up embeddings
+            val sql1 = "DELETE FROM $tableName WHERE metadata->>'source_id' = ?"
+            conn.prepareStatement(sql1).use { stmt ->
+                stmt.setString(1, sourceId)
+                stmt.executeUpdate()
+            }
+            // Clean up keyword index
+            val sql2 = "DELETE FROM keyword_indices WHERE source_id = ?"
+            conn.prepareStatement(sql2).use { stmt ->
                 stmt.setString(1, sourceId)
                 stmt.executeUpdate()
             }

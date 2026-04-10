@@ -8,7 +8,9 @@ package com.example.rag.core
 interface VectorStore {
     suspend fun store(block: ContentBlock, embedding: FloatArray)
     suspend fun storeBatch(blocks: List<ContentBlock>, embeddings: List<FloatArray>)
+    suspend fun storeKeywords(blocks: List<ContentBlock>)
     suspend fun search(queryEmbedding: FloatArray, limit: Int = 5): List<Pair<ContentBlock, Double>>
+    suspend fun hybridSearch(queryText: String, queryEmbedding: FloatArray, limit: Int = 5): List<Pair<ContentBlock, Double>>
 
     /**
      * Returns true if any chunks from the given sourceId are already stored.

@@ -44,11 +44,12 @@ fun appModule(properties: Properties) = module {
     single { RagPipeline(loader = get()) }
     single<Chunker>        { FixedSizeChunker(maxLength = 500, overlap = 50) }
     single<Embedder>       { AllMiniLmL6V2Embedder() }
+    val largeChunker = FixedSizeChunker(maxLength = 2000, overlap = 200)
 
     // DatabaseManager handles the PgVector → InMemoryVectorStore fallback
     single<VectorStore>    { DatabaseManager.setupVectorStore(get()) }
     single                 { FileTrackerRepository(dataSource = get()) }
-    single                 { DocumentSyncService(get(), get(), get(), get(), get()) }
+    single                 { DocumentSyncService(get(), get(), largeChunker, get(), get(), get()) }
 
     // ── LLM client — provider selected at startup from config ─────
     single<LlmClient> {
