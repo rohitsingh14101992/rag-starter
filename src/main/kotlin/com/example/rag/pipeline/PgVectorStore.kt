@@ -178,4 +178,15 @@ class PgVectorStore(
             }
         }
     }
+
+    override suspend fun deleteBySourceId(sourceId: String): Unit = withContext(Dispatchers.IO) {
+        getConnection().use { conn ->
+            val sql = "DELETE FROM $tableName WHERE metadata->>'source_id' = ?"
+            conn.prepareStatement(sql).use { stmt ->
+                stmt.setString(1, sourceId)
+                stmt.executeUpdate()
+            }
+        }
+        Unit
+    }
 }

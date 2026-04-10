@@ -11,12 +11,14 @@ import com.example.rag.core.MemoryStore
 import com.example.rag.core.VectorStore
 import com.example.rag.db.DatabaseManager
 import com.example.rag.pipeline.AllMiniLmL6V2Embedder
-import com.example.rag.pipeline.DataIngestionService
+import com.example.rag.pipeline.DocumentSyncService
+import com.example.rag.db.FileTrackerRepository
 import com.example.rag.pipeline.FixedSizeChunker
 import com.example.rag.pipeline.InMemoryMemoryStore
 import com.example.rag.pipeline.PDFBoxDocumentLoader
 import com.example.rag.pipeline.RagPipeline
 import com.example.rag.service.RagService
+import com.example.rag.service.KafkaProducerService
 import org.koin.dsl.module
 import java.util.Properties
 
@@ -45,7 +47,8 @@ fun appModule(properties: Properties) = module {
 
     // DatabaseManager handles the PgVector → InMemoryVectorStore fallback
     single<VectorStore>    { DatabaseManager.setupVectorStore(get()) }
-    single                 { DataIngestionService(get(), get(), get(), get()) }
+    single                 { FileTrackerRepository(dataSource = get()) }
+    single                 { DocumentSyncService(get(), get(), get(), get(), get()) }
 
     // ── LLM client — provider selected at startup from config ─────
     single<LlmClient> {
@@ -73,5 +76,5 @@ fun appModule(properties: Properties) = module {
     single                 { RagService(get(), get(), get(), get(), get()) }
 
     // Kafka
-    single                 { KafkaProducerService(get()) }
+    single { KafkaProducerService(properties = get()) }
 }

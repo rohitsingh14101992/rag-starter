@@ -15,6 +15,11 @@ interface VectorStore {
      * Used to skip re-indexing files that were already processed in a previous run.
      */
     suspend fun isAlreadyIndexed(sourceId: String): Boolean
+
+    /**
+     * Deletes all vectors and associated content blocks for the given sourceId.
+     */
+    suspend fun deleteBySourceId(sourceId: String)
 }
 
 

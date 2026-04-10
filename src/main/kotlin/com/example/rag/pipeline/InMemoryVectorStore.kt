@@ -69,5 +69,10 @@ class InMemoryVectorStore : VectorStore {
     }
 
     // In-memory store is always empty at startup — data doesn't survive restarts
-    override suspend fun isAlreadyIndexed(sourceId: String): Boolean = false
+    override suspend fun isAlreadyIndexed(sourceId: String): Boolean = 
+        data.any { it.first.metadata["source_id"] == sourceId }
+
+    override suspend fun deleteBySourceId(sourceId: String) {
+        data.removeIf { it.first.metadata["source_id"] == sourceId }
+    }
 }

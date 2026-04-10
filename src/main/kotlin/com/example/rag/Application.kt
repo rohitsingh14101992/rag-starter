@@ -9,8 +9,12 @@ import com.example.rag.db.DataSourceFactory
 import com.example.rag.message.MessageRepository
 import com.example.rag.message.MessageService
 import com.example.rag.di.appModule
-import com.example.rag.pipeline.DataIngestionService
+import com.example.rag.pipeline.DocumentSyncService
 import com.example.rag.server.createKtorServer
+import com.example.rag.service.KafkaProducerService
+import com.example.rag.service.RagQuery
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.koin.core.context.startKoin
 import java.io.File
@@ -38,7 +42,22 @@ fun main() = runBlocking {
 
     // ── 3. Start Koin (RAG pipeline) ───────────────────────────────────────────
     val koin = startKoin { modules(appModule(properties)) }.koin
-    koin.get<DataIngestionService>().ingestFolder("files")
+    val syncService = koin.get<DocumentSyncService>()
+    
+    // Initial sync and then every 5 minutes
+    launch {
+        while (true) {
+            println("Sync: Starting background synchronization...")
+            try {
+                syncService.syncFolder("files")
+                println("Sync: Background synchronization completed.")
+            } catch (e: Exception) {
+                println("Sync: Background synchronization failed: ${e.message}")
+            }
+            val intervalMinutes = properties.getProperty("sync.interval.minutes", "60").toLong()
+            delay(intervalMinutes * 60 * 1000)
+        }
+    }
 
     // ── 4. Build auth layer & repos ────────────────────────────────────────────
     val dataSource       = DataSourceFactory.create(properties)

@@ -7,6 +7,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import com.example.rag.core.ContentBlock
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import java.time.Duration
@@ -56,7 +57,7 @@ class KafkaConsumerWorker(
         println("Processing query: ${queryMsg.query} for conversation ${queryMsg.conversationId}")
 
         // 1. Run RAG pipeline
-        val ragQuery = RagQuery(question = queryMsg.query, chatId = queryMsg.conversationId)
+        val ragQuery = RagQuery(question = queryMsg.query, sessionId = queryMsg.conversationId)
         val ragResponse = ragService.ask(ragQuery)
 
         // 2. Save result to database
@@ -74,7 +75,9 @@ class KafkaConsumerWorker(
                 id = responseId,
                 conversationId = queryMsg.conversationId,
                 response = ragResponse.answer,
-                sourceDocs = ragResponse.sources.map { it.content }
+                sourceDocs = ragResponse.sources.map { (block, _) -> 
+                    (block as? ContentBlock.TextBlock)?.text ?: "" 
+                }
             )
         )
     }
