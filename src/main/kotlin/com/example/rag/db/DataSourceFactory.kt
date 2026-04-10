@@ -10,5 +10,6 @@ object DataSourceFactory {
         user = properties.getProperty("db.user", "raguser")
         password = properties.getProperty("db.password", "ragpass")
         databaseName = properties.getProperty("db.name", "ragdb")
+        assumeMinServerVersion = "9.0"
     }
 }

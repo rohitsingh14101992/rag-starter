@@ -1,20 +1,52 @@
 package com.example.rag.server
 
+import com.example.rag.conversation.ConversationService
+import com.example.rag.conversation.conversationRoutes
+import com.example.rag.message.MessageService
+import com.example.rag.message.messageRoutes
 import com.example.rag.auth.AuthService
 import com.example.rag.auth.ErrorResponse
 import com.example.rag.auth.authRoutes
+import com.example.rag.auth.JwtConfig
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
+import io.ktor.server.auth.jwt.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.response.*
+import io.ktor.server.routing.*
 
-fun createKtorServer(port: Int = 8080, authService: AuthService) =
+fun createKtorServer(
+    port: Int = 8080,
+    authService: AuthService,
+    jwtConfig: JwtConfig,
+    conversationService: ConversationService,
+    messageService: MessageService
+) =
     embeddedServer(Netty, port = port) {
+        install(Authentication) {
+            jwt("auth-jwt") {
+                realm = "rag-starter"
+                verifier(
+                    com.auth0.jwt.JWT.require(com.auth0.jwt.algorithms.Algorithm.HMAC256(jwtConfig.secret))
+                        .withIssuer(jwtConfig.issuer)
+                        .build()
+                )
+                validate { credential ->
+                    if (credential.payload.getClaim("userId").asString() != "") {
+                        JWTPrincipal(credential.payload)
+                    } else {
+                        null
+                    }
+                }
+            }
+        }
+
         // JSON serialisation
         install(ContentNegotiation) { json() }
 
@@ -40,4 +72,8 @@ fun createKtorServer(port: Int = 8080, authService: AuthService) =
         }
 
         authRoutes(authService)
+        routing {
+            conversationRoutes(conversationService)
+            messageRoutes(messageService)
+        }
     }

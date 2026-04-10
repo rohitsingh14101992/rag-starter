@@ -6,11 +6,11 @@ pluginManagement {
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
     }
     plugins {
-        kotlin("jvm")                                    version "2.0.0"
-        kotlin("multiplatform")                          version "2.0.0"
-        kotlin("plugin.serialization")                   version "2.0.0"
-        id("org.jetbrains.kotlin.plugin.compose")        version "2.0.0"
-        id("org.jetbrains.compose")                      version "1.6.11"
+        kotlin("jvm")                                    version "2.0.21"
+        kotlin("multiplatform")                          version "2.0.21"
+        kotlin("plugin.serialization")                   version "2.0.21"
+        id("org.jetbrains.kotlin.plugin.compose")        version "2.0.21"
+        id("org.jetbrains.compose")                      version "1.7.0"
     }
 }
 

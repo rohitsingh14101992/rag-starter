@@ -3,7 +3,11 @@ package com.example.rag
 import com.example.rag.auth.AuthService
 import com.example.rag.auth.JwtConfig
 import com.example.rag.auth.UserRepository
+import com.example.rag.conversation.ConversationRepository
+import com.example.rag.conversation.ConversationService
 import com.example.rag.db.DataSourceFactory
+import com.example.rag.message.MessageRepository
+import com.example.rag.message.MessageService
 import com.example.rag.di.appModule
 import com.example.rag.pipeline.DataIngestionService
 import com.example.rag.server.createKtorServer
@@ -36,14 +40,21 @@ fun main() = runBlocking {
     val koin = startKoin { modules(appModule(properties)) }.koin
     koin.get<DataIngestionService>().ingestFolder("files")
 
-    // ── 4. Build auth layer ────────────────────────────────────────────────────
-    val dataSource    = DataSourceFactory.create(properties)
-    val userRepo      = UserRepository(dataSource)
-    val authService   = AuthService(userRepo, JwtConfig.from(properties))
+    // ── 4. Build auth layer & repos ────────────────────────────────────────────
+    val dataSource       = DataSourceFactory.create(properties)
+    val userRepo         = UserRepository(dataSource)
+    val conversationRepo = ConversationRepository(dataSource)
+    val messageRepo      = MessageRepository(dataSource)
+    val authService      = AuthService(userRepo, JwtConfig.from(properties))
+    val conversationService = ConversationService(conversationRepo)
+    val messageService      = MessageService(messageRepo, conversationRepo)
 
     // ── 5. Start Ktor server (blocks until stopped) ────────────────────────────
     createKtorServer(
-        port        = properties.getProperty("server.port", "8080").toInt(),
-        authService = authService
+        port                = properties.getProperty("server.port", "8080").toInt(),
+        authService         = authService,
+        jwtConfig           = JwtConfig.from(properties),
+        conversationService = conversationService,
+        messageService      = messageService
     ).start(wait = true)
 }
