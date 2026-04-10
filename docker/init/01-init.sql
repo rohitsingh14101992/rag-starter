@@ -55,6 +55,41 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
 CREATE INDEX idx_messages_created_at ON messages(created_at);
 
+-- ── RAG & Synchronization ───────────────────────────────────────────────────
+
+-- Embeddings table for Vector Search
+CREATE TABLE IF NOT EXISTS embeddings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    block_type VARCHAR(50) NOT NULL,
+    text_content TEXT,
+    base64_data TEXT,
+    mime_type VARCHAR(100),
+    raw_html TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    embedding vector(384)
+);
+
+-- Add vector index for performance with cosine distance (HNSW)
+CREATE INDEX IF NOT EXISTS embeddings_embedding_idx ON embeddings USING hnsw (embedding vector_cosine_ops);
+
+-- File tracker table for Synchronization
+CREATE TABLE IF NOT EXISTS file_tracker (
+    file_path TEXT PRIMARY KEY,
+    hash TEXT NOT NULL,
+    last_modified TIMESTAMP NOT NULL
+);
+
+-- Keyword indices table for BM25 / Full-text search
+CREATE TABLE IF NOT EXISTS keyword_indices (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    source_id TEXT NOT NULL,
+    text_content TEXT NOT NULL,
+    tsv tsvector
+);
+
+-- Add GIN index for fast full-text search
+CREATE INDEX IF NOT EXISTS keyword_indices_tsv_idx ON keyword_indices USING gin(tsv);
+
 -- ── Seed data (dev / testing only) ────────────────────────────────────────────
 -- Password: "password"  (bcrypt cost=10 — change before going to production)
 INSERT INTO users (email, password_hash)
