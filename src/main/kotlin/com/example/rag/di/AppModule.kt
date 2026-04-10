@@ -71,4 +71,7 @@ fun appModule(properties: Properties) = module {
     single                 { PromptTemplate }
 
     single                 { RagService(get(), get(), get(), get(), get()) }
+
+    // Kafka
+    single                 { KafkaProducerService(get()) }
 }

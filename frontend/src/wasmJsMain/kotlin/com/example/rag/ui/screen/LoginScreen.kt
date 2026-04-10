@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit = {}
+    onLoginSuccess: (String) -> Unit = {}
 ) {
     val coroutineScope = rememberCoroutineScope()
     var email by remember { mutableStateOf("") }
@@ -82,7 +82,7 @@ fun LoginScreen(
                                     try {
                                         val token = performLoginSuspending(email, password)
                                         println("Login success! Token: $token")
-                                        onLoginSuccess()
+                                        onLoginSuccess(token)
                                     } catch (e: Exception) {
                                         errorMessage = e.message ?: "Login failed"
                                     }

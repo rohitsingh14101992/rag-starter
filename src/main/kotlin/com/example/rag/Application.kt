@@ -47,14 +47,30 @@ fun main() = runBlocking {
     val messageRepo      = MessageRepository(dataSource)
     val authService      = AuthService(userRepo, JwtConfig.from(properties))
     val conversationService = ConversationService(conversationRepo)
-    val messageService      = MessageService(messageRepo, conversationRepo)
+    val kafkaProducerService = koin.get<KafkaProducerService>()
+    val messageService      = MessageService(messageRepo, conversationRepo, kafkaProducerService)
+    val wsService           = com.example.rag.server.WebSocketResponseService(properties)
 
-    // ── 5. Start Ktor server (blocks until stopped) ────────────────────────────
+    // ── 5. Start Kafka worker (asynchronous) ──────────────────────────────────
+    val kafkaConsumerWorker = com.example.rag.service.KafkaConsumerWorker(
+        properties          = properties,
+        ragService          = koin.get(),
+        messageRepo         = messageRepo,
+        kafkaProducerService = kafkaProducerService
+    )
+    launch { kafkaConsumerWorker.start() }
+
+    Runtime.getRuntime().addShutdownHook(Thread {
+        kafkaProducerService.close()
+    })
+
+    // ── 6. Start Ktor server (blocks until stopped) ────────────────────────────
     createKtorServer(
         port                = properties.getProperty("server.port", "8080").toInt(),
         authService         = authService,
         jwtConfig           = JwtConfig.from(properties),
         conversationService = conversationService,
-        messageService      = messageService
+        messageService      = messageService,
+        wsService           = wsService
     ).start(wait = true)
 }

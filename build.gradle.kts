@@ -61,6 +61,12 @@ dependencies {
     // Dependency Injection
     implementation("io.insert-koin:koin-core:3.5.3")
 
+    // Kafka
+    implementation("org.apache.kafka:kafka-clients:3.7.0")
+
+    // Ktor Server WebSockets
+    implementation("io.ktor:ktor-server-websockets:$ktor_version")
+
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
     
     // Testcontainers for VectorStore integration tests

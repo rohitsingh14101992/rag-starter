@@ -26,9 +26,11 @@ fun createKtorServer(
     authService: AuthService,
     jwtConfig: JwtConfig,
     conversationService: ConversationService,
-    messageService: MessageService
+    messageService: MessageService,
+    wsService: WebSocketResponseService
 ) =
     embeddedServer(Netty, port = port) {
+        install(WebSockets)
         install(Authentication) {
             jwt("auth-jwt") {
                 realm = "rag-starter"
@@ -75,5 +77,24 @@ fun createKtorServer(
         routing {
             conversationRoutes(conversationService)
             messageRoutes(messageService)
+
+            webSocket("/ws/responses/{conversationId}") {
+                val conversationId = call.parameters["conversationId"] ?: return@webSocket close(
+                    CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "Missing conversationId")
+                )
+                
+                try {
+                    wsService.addSession(conversationId, this)
+                    println("WebSocket session opened for conversation: $conversationId")
+                    
+                    // Keep the connection open until closed by client or error
+                    for (frame in incoming) {
+                        // We don't expect messages from client, but we need to consume to keep session alive
+                    }
+                } finally {
+                    wsService.removeSession(conversationId, this)
+                    println("WebSocket session closed for conversation: $conversationId")
+                }
+            }
         }
     }

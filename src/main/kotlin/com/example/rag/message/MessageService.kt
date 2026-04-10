@@ -1,6 +1,9 @@
 package com.example.rag.message
 
 import com.example.rag.conversation.ConversationRepository
+import com.example.rag.service.KafkaMessage
+import com.example.rag.service.KafkaProducerService
+import java.util.*
 
 sealed class MessageResult {
     data class Success(val messages: List<Message>, val total: Int) : MessageResult()
@@ -12,7 +15,8 @@ sealed class MessageResult {
 
 class MessageService(
     private val messageRepo: MessageRepository,
-    private val conversationRepo: ConversationRepository
+    private val conversationRepo: ConversationRepository,
+    private val kafkaProducerService: KafkaProducerService
 ) {
     fun getMessagesForConversation(userId: String, conversationId: String, limit: Int, offset: Int): MessageResult {
         return try {
@@ -37,6 +41,19 @@ class MessageService(
             val message = messageRepo.createMessage(
                 Message(conversationId = conversationId, role = role, content = content)
             )
+
+            // If it's a user message, send to Kafka to trigger LLM response
+            if (role == "user") {
+                kafkaProducerService.sendQuery(
+                    KafkaMessage(
+                        id = message.id ?: UUID.randomUUID().toString(),
+                        conversationId = conversationId,
+                        userId = userId,
+                        query = content
+                    )
+                )
+            }
+
             MessageResult.SingleSuccess(message)
         } catch (e: Exception) {
             MessageResult.Failure(e.message ?: "Unknown database error")
