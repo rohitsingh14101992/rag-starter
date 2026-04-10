@@ -22,6 +22,8 @@ import com.example.rag.service.KafkaProducerService
 import org.koin.dsl.module
 import java.util.Properties
 
+import javax.sql.DataSource
+
 /**
  * Main Koin module for the RAG application.
  *
@@ -34,10 +36,11 @@ import java.util.Properties
  * - [LlmClient]       → [GroqApiClient] or [GeminiApiClient] based on config
  * - [RagService]      → orchestrates the full ask() pipeline
  */
-fun appModule(properties: Properties) = module {
+fun appModule(properties: Properties, dataSource: DataSource) = module {
 
     // ── Config ────────────────────────────────────────────────────
     single { properties }
+    single { dataSource }
 
     // ── Ingestion pipeline ────────────────────────────────────────
     single<DocumentLoader> { PDFBoxDocumentLoader() }

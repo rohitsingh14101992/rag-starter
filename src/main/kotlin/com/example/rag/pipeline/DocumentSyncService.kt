@@ -57,6 +57,7 @@ class DocumentSyncService(
                 }
 
                 try {
+                    println("Sync: Indexing file: ${file.absolutePath}")
                     ingestFile(file)
                     val lastModified = LocalDateTime.ofInstant(
                         Instant.ofEpochMilli(file.lastModified()),

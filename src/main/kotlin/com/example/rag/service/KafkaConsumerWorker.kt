@@ -10,6 +10,7 @@ import kotlinx.serialization.json.Json
 import com.example.rag.core.ContentBlock
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.common.serialization.StringDeserializer
 import java.time.Duration
 import java.util.*
 
@@ -25,8 +26,8 @@ class KafkaConsumerWorker(
         val kafkaProps = Properties().apply {
             put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, properties.getProperty("kafka.bootstrap.servers", "localhost:9092"))
             put(ConsumerConfig.GROUP_ID_CONFIG, properties.getProperty("kafka.group.id", "rag-worker-group"))
-            put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
-            put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+            put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java)
+            put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java)
             put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
         }
         consumer = KafkaConsumer<String, String>(kafkaProps)

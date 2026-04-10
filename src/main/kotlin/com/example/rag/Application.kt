@@ -16,6 +16,7 @@ import com.example.rag.service.RagQuery
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Dispatchers
 import org.koin.core.context.startKoin
 import java.io.File
 import java.util.Properties
@@ -40,12 +41,19 @@ fun main() = runBlocking {
         println("LLM provider: Gemini (${properties.getProperty("gemini.model", "gemini-1.5-flash")})")
     }
 
-    // ── 3. Start Koin (RAG pipeline) ───────────────────────────────────────────
-    val koin = startKoin { modules(appModule(properties)) }.koin
+    // ── 3. Initialize Database ────────────────────────────────────────────────
+    val dataSource = DataSourceFactory.create(properties)
+
+    // ── 4. Start Koin (RAG pipeline) ───────────────────────────────────────────
+    println("App: Starting Koin...")
+    val koin = startKoin { modules(appModule(properties, dataSource)) }.koin
+    println("App: Koin started, retrieving syncService...")
     val syncService = koin.get<DocumentSyncService>()
+    println("App: syncService retrieved successfully.")
     
     // Initial sync and then every 5 minutes
-    launch {
+    launch(Dispatchers.Default) {
+        println("App: Background sync coroutine launched.")
         while (true) {
             println("Sync: Starting background synchronization...")
             try {
@@ -59,8 +67,7 @@ fun main() = runBlocking {
         }
     }
 
-    // ── 4. Build auth layer & repos ────────────────────────────────────────────
-    val dataSource       = DataSourceFactory.create(properties)
+    // ── 5. Build auth layer & repos ────────────────────────────────────────────
     val userRepo         = UserRepository(dataSource)
     val conversationRepo = ConversationRepository(dataSource)
     val messageRepo      = MessageRepository(dataSource)
@@ -77,7 +84,7 @@ fun main() = runBlocking {
         messageRepo         = messageRepo,
         kafkaProducerService = kafkaProducerService
     )
-    launch { kafkaConsumerWorker.start() }
+    launch(Dispatchers.Default) { kafkaConsumerWorker.start() }
 
     Runtime.getRuntime().addShutdownHook(Thread {
         kafkaProducerService.close()
